@@ -7,7 +7,6 @@ license = "MIT"
 repository = "https://github.com/luxluth/seekr"
 readme = "README.md"
 homepage = "https://github.com/luxluth/seekr"
-categories = ["tools"]
 keywords = ["seekr", "launcher", "spotlight", "search", "gui"]
 authors = ["luxluth <delphin.blehoussi93@gmail.com>"]
 
