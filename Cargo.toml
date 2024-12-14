@@ -1,16 +1,15 @@
 [package]
-name = "seekr"
+name = "seekr-util"
 version = "0.0.1"
 edition = "2021"
-description = " A spotlight like search util for linux"
+description = "System search util for linux"
 license = "MIT"
-repository = "https://github.com/luxluth/fsearch"
-readme = "../README.md"
-homepage = "https://github.com/luxluth/fsearch"
+repository = "https://github.com/luxluth/seekr"
+readme = "README.md"
+homepage = "https://github.com/luxluth/seekr"
 categories = ["tools"]
-keywords = ["fsearch", "spotlight", "gui"]
+keywords = ["seekr", "launcher", "spotlight", "search", "gui"]
 authors = ["luxluth <delphin.blehoussi93@gmail.com>"]
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 exmex = "0.20.3"
@@ -27,6 +26,10 @@ lazy_static = "1.5.0"
 fragile = "2.0.0"
 ini-roundtrip = "0.2.0"
 rust-i18n = "3.1.2"
+
+[[bin]]
+name = "seekr"
+path = "src/main.rs"
 
 [profile.release]
 lto = true
