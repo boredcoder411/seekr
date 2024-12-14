@@ -24,27 +24,16 @@ fn get_exec(exec: &str) -> String {
 }
 
 impl AppEntry {
-    pub fn launch(&self, term: Option<String>, term_launch_args: Option<String>) {
+    pub fn launch(&self, term: String, term_launch_args: Vec<String>) {
         let exec = get_exec(&self.exec);
         debug!("{exec:?}");
         if self.need_terminal {
-            if let Some(term) = term {
-                let args: Vec<String> = if term_launch_args.is_some() {
-                    vec![term_launch_args.unwrap(), exec]
-                } else {
-                    vec![exec]
-                };
-
-                let _ = Command::new("sh")
-                    .arg("-c")
-                    .arg(format!("{term} {}", args.join(" ")))
-                    .spawn();
-            } else {
-                let _ = Command::new("sh")
-                    .arg("-c")
-                    .arg(vec!["kitty".to_string(), "-e".to_string(), exec].join(" "))
-                    .spawn();
-            }
+            let mut args = term_launch_args;
+            args.push(exec);
+            let _ = Command::new("sh")
+                .arg("-c")
+                .arg(format!("{term} {}", args.join(" ")))
+                .spawn();
         } else {
             let _ = Command::new("sh").arg("-c").arg(exec).spawn();
         }

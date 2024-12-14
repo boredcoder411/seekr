@@ -3,3 +3,6 @@ debug:
 
 run:
   cargo run --release
+
+build:
+  cargo i18n && cargo build --release

@@ -2,17 +2,21 @@
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow};
+use rust_i18n::t;
 use search::SearchManager;
 
 mod app;
 mod bus;
 mod conf;
 mod icons;
+mod locale;
 mod resources;
 mod search;
 mod ui;
 
-fn activate(app: &Application) {
+rust_i18n::i18n!("locales", fallback = "en");
+
+fn activate(config: conf::Config, app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
         .title("seekr")
@@ -159,8 +163,7 @@ fn activate(app: &Application) {
                 .ellipsize(gtk::pango::EllipsizeMode::End)
                 .build();
 
-            // TODO: localize
-            title.set_text("Expression evaluation");
+            title.set_text(&t!("expr_eval").to_string());
             let head_icon = gtk::Image::from_gicon(resources::DIVIDE_ICON.get());
             head_icon.set_css_classes(&["search_icon"]);
 
@@ -212,13 +215,12 @@ fn activate(app: &Application) {
                     .css_name("title")
                     .build();
 
-                // TODO: localize
-                title.set_label(&format!("Applications"));
+                title.set_label(&t!("apps").to_string());
                 entries_box.append(&title);
             }
 
             for entry in entries {
-                let button = ui::EntryButton(entry, &tomanager);
+                let button = ui::EntryButton(&config, entry, &tomanager);
                 entries_box.append(&button);
             }
 
@@ -259,11 +261,14 @@ fn load_css() {
 
 #[tokio::main]
 async fn main() {
+    rust_i18n::set_locale(&locale::get_locale());
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .with_thread_ids(true)
         .with_timer(tracing_subscriber::fmt::time::time())
         .init();
+
+    let config = conf::Config::parse(conf::init_config_dir());
     if bus::app_is_running() {
         bus::send_represent_event();
     } else {
@@ -272,7 +277,7 @@ async fn main() {
         let application = Application::new(Some(conf::APP_ID), Default::default());
 
         application.connect_activate(move |app| {
-            activate(&app);
+            activate(config.clone(), &app);
         });
 
         application.run();

@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
+use crate::conf::Config;
 use crate::resources;
 use linicon::lookup_icon;
 use tracing::warn;
 
-pub fn get_icon(name: &str) -> Option<PathBuf> {
+pub fn get_icon(config: &Config, name: &str) -> Option<PathBuf> {
     let mut res = resources::ICON_MAP.get().write().unwrap();
     if let Some(e) = res.get(name) {
         return e.clone();
@@ -13,6 +14,7 @@ pub fn get_icon(name: &str) -> Option<PathBuf> {
     let icons: Vec<_> = lookup_icon(name)
         .with_scale(1)
         .with_size(48)
+        .from_theme(config.general.theme.clone())
         .with_search_paths(&["~/.local/share/icons/"])
         .unwrap()
         .filter_map(|x| match x {

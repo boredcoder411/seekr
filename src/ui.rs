@@ -1,4 +1,5 @@
 use crate::app::AppEntry;
+use crate::conf::Config;
 use crate::icons;
 use crate::search::{self, SearchEvent};
 use gtk::glib;
@@ -6,7 +7,7 @@ use gtk::prelude::*;
 use std::sync::mpsc::Sender;
 
 #[allow(non_snake_case)]
-pub fn EntryButton(entry: AppEntry, sender: &Sender<SearchEvent>) -> gtk::Button {
+pub fn EntryButton(config: &Config, entry: AppEntry, sender: &Sender<SearchEvent>) -> gtk::Button {
     let tomanager = sender.clone();
 
     let entry_button = gtk::Button::builder()
@@ -38,13 +39,15 @@ pub fn EntryButton(entry: AppEntry, sender: &Sender<SearchEvent>) -> gtk::Button
         }
     ));
 
+    let term = config.general.terminal.clone();
+    let args = config.general.args.clone();
     entry_button.connect_clicked(glib::clone!(
         #[strong]
         entry,
         #[strong]
         tomanager,
         move |_| {
-            entry.launch(None, None);
+            entry.launch(term.clone(), args.clone());
             let _ = tomanager.send(search::SearchEvent::RequestClose);
         }
     ));
@@ -53,9 +56,9 @@ pub fn EntryButton(entry: AppEntry, sender: &Sender<SearchEvent>) -> gtk::Button
     entry_button.set_focusable(true);
 
     let icon_image = gtk::Image::builder().css_name("entryIcon").build();
-    icon_image.set_from_file(match icons::get_icon(&entry.icon) {
+    icon_image.set_from_file(match icons::get_icon(config, &entry.icon) {
         Some(path) => Some(path),
-        None => icons::get_icon("application-x-executable"),
+        None => icons::get_icon(config, "application-x-executable"),
     });
 
     let name = gtk::Label::builder()

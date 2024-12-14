@@ -1,0 +1,8 @@
+_version: 2
+apps:
+  en: Applications
+  fr: Applications
+
+expr_eval:
+  en: Expression evaluation
+  fr: Évaluation de l'expression
