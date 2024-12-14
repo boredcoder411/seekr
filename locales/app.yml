@@ -1,8 +1,22 @@
 _version: 2
+
+search_placeholder:
+  en: Search
+  fr: Recherche
+  zh: 搜索
+  ja: 検索
+  es: Buscar
+
 apps:
   en: Applications
   fr: Applications
+  zh: 应用程序
+  ja: アプリケーション
+  es: Aplicaciones
 
 expr_eval:
   en: Expression evaluation
   fr: Évaluation de l'expression
+  zh: 表达式评估
+  ja: 式評価
+  es: Evaluación de expresiones

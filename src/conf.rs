@@ -1,20 +1,9 @@
+use rust_i18n::t;
 use std::io::{Read, Write};
-
 use tracing::{debug, warn};
 
 pub const APP_ID: &str = "dev.luxluth.seekr";
-pub const DEFAULT_CONFIG: &str = r#"# General seekr application config
-[general]
-
-# icon theme
-theme = Adwaita
-
-# terminal used to run shell based programs
-terminal = kitty
-
-# terminal launch args
-args = -e
-"#;
+pub const DEFAULT_CONFIG: &str = include_str!("./default.conf");
 
 pub const DEFAULT_CSS: &str = include_str!("./style.css");
 
@@ -23,6 +12,7 @@ pub struct GeneralConf {
     pub theme: String,
     pub terminal: String,
     pub args: Vec<String>,
+    pub search_placeholder: String,
 }
 
 impl Default for GeneralConf {
@@ -31,6 +21,7 @@ impl Default for GeneralConf {
             theme: "Adwaita".to_string(),
             terminal: "kitty".to_string(),
             args: vec!["-e".to_string()],
+            search_placeholder: t!("search_placeholder").to_string(),
         }
     }
 }
@@ -75,8 +66,8 @@ impl Config {
                     ini_roundtrip::Item::Property {
                         key: "theme", val, ..
                     } => {
-                        if is_in_general {
-                            general.theme = val.unwrap_or("Adwaita").trim().to_string();
+                        if is_in_general && val.is_some() {
+                            general.theme = val.unwrap().trim().to_string();
                         }
                     }
                     ini_roundtrip::Item::Property {
@@ -84,20 +75,29 @@ impl Config {
                         val,
                         ..
                     } => {
-                        if is_in_general {
-                            general.terminal = val.unwrap_or("kitty").trim().to_string();
+                        if is_in_general && val.is_some() {
+                            general.terminal = val.unwrap().trim().to_string();
                         }
                     }
                     ini_roundtrip::Item::Property {
                         key: "args", val, ..
                     } => {
-                        if is_in_general {
+                        if is_in_general && val.is_some() {
                             general.args = val
-                                .unwrap_or("-e")
+                                .unwrap()
                                 .trim()
                                 .split(' ')
                                 .map(|x| x.to_string())
                                 .collect();
+                        }
+                    }
+                    ini_roundtrip::Item::Property {
+                        key: "search_placeholder",
+                        val,
+                        ..
+                    } => {
+                        if is_in_general && val.is_some() {
+                            general.search_placeholder = val.unwrap().to_string();
                         }
                     }
                     _ => {}
@@ -126,7 +126,11 @@ pub fn init_config_dir() -> std::path::PathBuf {
 
     if !config_file.exists() {
         if let Ok(mut f) = std::fs::File::create(&config_file) {
-            let _ = f.write(DEFAULT_CONFIG.as_bytes());
+            let _ = f.write(
+                DEFAULT_CONFIG
+                    .replace("%PLACEHOLDER%", &t!("search_placeholder").to_string())
+                    .as_bytes(),
+            );
         }
     }
 

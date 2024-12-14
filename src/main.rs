@@ -73,7 +73,7 @@ fn activate(config: conf::Config, app: &Application) {
         .hexpand(true)
         .css_name("input")
         .activates_default(true)
-        .placeholder_text("Search with Seekr")
+        .placeholder_text(&config.general.search_placeholder)
         .build();
 
     entry.connect_changed(glib::clone!(
