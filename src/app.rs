@@ -1,5 +1,5 @@
 use freedesktop_desktop_entry::{get_languages_from_env, DesktopEntry};
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 use tracing::debug;
 
 #[derive(Debug, Clone)]
@@ -9,6 +9,7 @@ pub struct AppEntry {
     pub icon: String,
     pub name: String,
     pub description: String,
+    pub _path: PathBuf,
 }
 
 const PATTERNS: [&str; 13] = [
@@ -45,7 +46,7 @@ pub fn collect_apps() -> Vec<AppEntry> {
     freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
         .into_iter()
         .filter_map(|p| {
-            if let Ok(entry) = DesktopEntry::from_path(p, Some(&locales)) {
+            if let Ok(entry) = DesktopEntry::from_path(p.clone(), Some(&locales)) {
                 return Some(AppEntry {
                     exec: entry.exec().unwrap_or_default().to_string(),
                     need_terminal: entry.terminal(),
@@ -55,6 +56,7 @@ pub fn collect_apps() -> Vec<AppEntry> {
                         .to_string(),
                     name: entry.name(&locales).unwrap_or_default().to_string(),
                     description: entry.comment(&locales).unwrap_or_default().to_string(),
+                    _path: p,
                 });
             }
 
