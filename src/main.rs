@@ -246,11 +246,10 @@ fn activate(config: conf::Config, app: &Application) {
     }
 }
 
-fn load_css() {
+fn load_css(css: String) {
     gtk::init().expect("Unable to init gtk");
     let provider = gtk::CssProvider::new();
-    let css = include_str!("./style.css");
-    provider.load_from_string(css);
+    provider.load_from_string(&css);
 
     gtk::style_context_add_provider_for_display(
         &gtk::gdk::Display::default().expect("Could not connect to a display."),
@@ -272,7 +271,7 @@ async fn main() {
     if bus::app_is_running() {
         bus::send_represent_event();
     } else {
-        load_css();
+        load_css(config.css.clone());
 
         let application = Application::new(Some(conf::APP_ID), Default::default());
 

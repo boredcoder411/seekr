@@ -16,6 +16,8 @@ terminal = kitty
 args = -e
 "#;
 
+pub const DEFAULT_CSS: &str = include_str!("./style.css");
+
 #[derive(Clone)]
 pub struct GeneralConf {
     pub theme: String,
@@ -36,10 +38,24 @@ impl Default for GeneralConf {
 #[derive(Default, Clone)]
 pub struct Config {
     pub general: GeneralConf,
+    pub css: String,
 }
 
 impl Config {
     pub fn parse(path: std::path::PathBuf) -> Self {
+        let mut css = DEFAULT_CSS.to_string();
+        let css_path = path.parent().unwrap().join("style.css");
+        if css_path.exists() {
+            if let Ok(mut f) = std::fs::File::open(&css_path) {
+                css = String::new();
+                let _ = f.read_to_string(&mut css);
+            }
+        } else {
+            if let Ok(mut f) = std::fs::File::create(&css_path) {
+                let _ = f.write(DEFAULT_CSS.as_bytes());
+            }
+        }
+
         if let Ok(mut f) = std::fs::File::open(&path) {
             let mut data = String::new();
             let _ = f.read_to_string(&mut data);
@@ -88,7 +104,7 @@ impl Config {
                 }
             }
 
-            return Self { general };
+            return Self { general, css };
         }
 
         return Self::default();
