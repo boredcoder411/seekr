@@ -1,4 +1,7 @@
-// use gtk::gdk_pixbuf::Pixbuf;
+use std::sync::Arc;
+use tokio::runtime::Runtime;
+use tokio::sync::RwLock;
+
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow};
@@ -16,7 +19,12 @@ mod ui;
 
 rust_i18n::i18n!("locales", fallback = "en");
 
-fn activate(config: conf::Config, app: &Application) {
+async fn activate(
+    current_css_provider: Arc<RwLock<gtk::CssProvider>>,
+    config: Arc<RwLock<conf::Config>>,
+    app: &Application,
+) {
+    let rt = Runtime::new().expect("Unable to create Runtime");
     let window = ApplicationWindow::builder()
         .application(app)
         .title("seekr")
@@ -37,14 +45,38 @@ fn activate(config: conf::Config, app: &Application) {
     let (manager, (tomanager, frommanager)) = SearchManager::new();
     manager.manage();
 
+    let entry = gtk::Entry::builder()
+        .hexpand(true)
+        .css_name("input")
+        .activates_default(true)
+        .placeholder_text(&config.read().await.general.search_placeholder)
+        .build();
+
     let represent_action = gtk::gio::SimpleAction::new("represent", None);
+    let conf_arc_clone = config.clone();
     represent_action.connect_activate(glib::clone!(
         #[weak]
         window,
         #[strong]
         tomanager,
+        #[weak]
+        entry,
         move |_, _| {
             let _ = tomanager.send(search::SearchEvent::Represent);
+            let rt = Runtime::new().expect("Unable to create Runtime");
+            rt.block_on(async {
+                let mut conf = conf_arc_clone.write().await;
+                let ccp = current_css_provider.read().await;
+                conf.reload();
+                entry.set_placeholder_text(Some(&conf.general.search_placeholder.clone()));
+                let new_css_provider = load_css(conf.css.clone(), Some(ccp.clone()));
+                drop(ccp);
+                drop(conf);
+                {
+                    let mut ccp = current_css_provider.write().await;
+                    *ccp = new_css_provider;
+                }
+            });
             window.present();
         }
     ));
@@ -56,24 +88,6 @@ fn activate(config: conf::Config, app: &Application) {
         .spacing(5)
         .css_name("inputBox")
         .name("inputBox")
-        .build();
-
-    // let search_icon = include_str!("assets/search.svg").as_bytes();
-    // let cursor = gtk::gio::MemoryInputStream::from_bytes(&glib::Bytes::from(search_icon));
-    // let loader =
-    //     Pixbuf::from_stream_at_scale(&cursor, 48, 48, true, None::<&gtk::gio::Cancellable>)
-    //         .unwrap();
-    // let icon = gtk::gio::Icon::from(loader);
-    // let search_icon = gtk::Image::from_gicon(&icon);
-    // search_icon.set_css_classes(&["search_icon"]);
-    //
-    // input_container.append(&search_icon);
-
-    let entry = gtk::Entry::builder()
-        .hexpand(true)
-        .css_name("input")
-        .activates_default(true)
-        .placeholder_text(&config.general.search_placeholder)
         .build();
 
     entry.connect_changed(glib::clone!(
@@ -219,8 +233,9 @@ fn activate(config: conf::Config, app: &Application) {
                 entries_box.append(&title);
             }
 
+            let cfg = rt.block_on(async { config.clone().read().await.clone() });
             for entry in entries {
-                let button = ui::EntryButton(&config, entry, &tomanager);
+                let button = ui::EntryButton(&cfg, entry, &tomanager);
                 entries_box.append(&button);
             }
 
@@ -246,20 +261,29 @@ fn activate(config: conf::Config, app: &Application) {
     }
 }
 
-fn load_css(css: String) {
-    gtk::init().expect("Unable to init gtk");
+fn load_css(css: String, previous_provider: Option<gtk::CssProvider>) -> gtk::CssProvider {
     let provider = gtk::CssProvider::new();
     provider.load_from_string(&css);
+
+    if let Some(previous_provider) = previous_provider {
+        gtk::style_context_remove_provider_for_display(
+            &gtk::gdk::Display::default().expect("Could not connect to a display."),
+            &previous_provider,
+        );
+    }
 
     gtk::style_context_add_provider_for_display(
         &gtk::gdk::Display::default().expect("Could not connect to a display."),
         &provider,
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
+
+    return provider;
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    let rt = Runtime::new().expect("Unable to create Runtime");
+    let _enter = rt.enter();
     rust_i18n::set_locale(&locale::get_locale());
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
@@ -271,12 +295,20 @@ async fn main() {
     if bus::app_is_running() {
         bus::send_represent_event();
     } else {
-        load_css(config.css.clone());
+        gtk::init().expect("Unable to init gtk");
+        let current_css_provider = load_css(config.css.clone(), None);
 
         let application = Application::new(Some(conf::APP_ID), Default::default());
 
         application.connect_activate(move |app| {
-            activate(config.clone(), &app);
+            rt.block_on(async {
+                activate(
+                    Arc::new(RwLock::new(current_css_provider.clone())),
+                    Arc::new(RwLock::new(config.clone())),
+                    app,
+                )
+                .await
+            });
         });
 
         application.run();

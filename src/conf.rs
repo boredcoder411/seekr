@@ -1,5 +1,8 @@
 use rust_i18n::t;
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    path::PathBuf,
+};
 use tracing::{debug, warn};
 
 pub const APP_ID: &str = "dev.luxluth.seekr";
@@ -7,7 +10,7 @@ pub const DEFAULT_CONFIG: &str = include_str!("./default.conf");
 
 pub const DEFAULT_CSS: &str = include_str!("./style.css");
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GeneralConf {
     pub theme: String,
     pub terminal: String,
@@ -26,37 +29,39 @@ impl Default for GeneralConf {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Config {
     pub general: GeneralConf,
     pub css: String,
+    pub css_path: PathBuf,
+    pub _conf_path: PathBuf,
 }
 
 impl Config {
-    pub fn parse(path: std::path::PathBuf) -> Self {
+    fn reload_css(&mut self) {
         let mut css = DEFAULT_CSS.to_string();
-        let css_path = path.parent().unwrap().join("style.css");
+        let css_path = self.css_path.clone();
         if css_path.exists() {
             if let Ok(mut f) = std::fs::File::open(&css_path) {
                 css = String::new();
                 let _ = f.read_to_string(&mut css);
             }
-        } else {
-            if let Ok(mut f) = std::fs::File::create(&css_path) {
-                let _ = f.write(DEFAULT_CSS.as_bytes());
-            }
         }
 
-        if let Ok(mut f) = std::fs::File::open(&path) {
+        self.css = css;
+    }
+
+    pub fn get_conf(conf_path: &PathBuf) -> GeneralConf {
+        let mut general = GeneralConf::default();
+        if let Ok(mut f) = std::fs::File::open(conf_path) {
             let mut data = String::new();
             let _ = f.read_to_string(&mut data);
             let mut is_in_general = false;
-            let mut general = GeneralConf::default();
 
             for (line, item) in ini_roundtrip::Parser::new(&data).enumerate() {
                 match item {
                     ini_roundtrip::Item::Error(e) => {
-                        warn!("{}:{line}: {e}", path.display());
+                        warn!("{}:{line}: {e}", conf_path.display());
                     }
                     ini_roundtrip::Item::Section {
                         name: "general", ..
@@ -103,11 +108,34 @@ impl Config {
                     _ => {}
                 }
             }
+        }
+        return general;
+    }
 
-            return Self { general, css };
+    pub fn reload(&mut self) {
+        self.reload_css();
+    }
+
+    pub fn parse(path: std::path::PathBuf) -> Self {
+        let mut css = DEFAULT_CSS.to_string();
+        let css_path = path.parent().unwrap().join("style.css");
+        if css_path.exists() {
+            if let Ok(mut f) = std::fs::File::open(&css_path) {
+                css = String::new();
+                let _ = f.read_to_string(&mut css);
+            }
+        } else {
+            if let Ok(mut f) = std::fs::File::create(&css_path) {
+                let _ = f.write(DEFAULT_CSS.as_bytes());
+            }
         }
 
-        return Self::default();
+        return Self {
+            general: Self::get_conf(&path),
+            css,
+            css_path,
+            _conf_path: path,
+        };
     }
 }
 
