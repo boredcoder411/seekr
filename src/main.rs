@@ -24,6 +24,9 @@ async fn activate(
     config: Arc<RwLock<conf::Config>>,
     app: &Application,
 ) {
+    let settings = gtk::Settings::default().expect("Failed to create GTK settings.");
+    settings.set_gtk_icon_theme_name(Some(&config.read().await.general.theme));
+
     let rt = Runtime::new().expect("Unable to create Runtime");
     let window = ApplicationWindow::builder()
         .application(app)

@@ -55,11 +55,11 @@ pub fn EntryButton(config: &Config, entry: AppEntry, sender: &Sender<SearchEvent
     entry_button.add_controller(focus_controller);
     entry_button.set_focusable(true);
 
-    let icon_image = gtk::Image::builder().css_name("entryIcon").build();
-    icon_image.set_from_file(match icons::get_icon(config, &entry.icon) {
-        Some(path) => Some(path),
-        None => icons::get_icon(config, "application-x-executable"),
-    });
+    let icon_image = gtk::Image::builder()
+        .pixel_size(48)
+        .css_name("entryIcon")
+        .build();
+    icon_image.set_from_gicon(&icons::get_icon(&entry.icon));
 
     let name = gtk::Label::builder()
         .css_name("entryName")
