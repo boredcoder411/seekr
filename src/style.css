@@ -21,12 +21,6 @@ inputBox {
   padding-left: 10px;
 }
 
-inputBox .search_icon {
-  opacity: 0.5;
-  min-width: 48px;
-  min-height: 48px;
-}
-
 input {
   caret-color: #ffffff;
   font-size: 32px;

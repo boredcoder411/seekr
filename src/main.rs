@@ -181,8 +181,11 @@ async fn activate(
                 .build();
 
             title.set_text(&t!("expr_eval").to_string());
-            let head_icon = gtk::Image::from_gicon(resources::DIVIDE_ICON.get());
-            head_icon.set_css_classes(&["search_icon"]);
+            let head_icon = gtk::Image::builder()
+                .pixel_size(12)
+                .gicon(&icons::get_icon("plus-symbolic"))
+                .build();
+            head_icon.set_css_classes(&["eval_icon"]);
 
             head_box.append(&head_icon);
             head_box.append(&title);
