@@ -33,24 +33,9 @@ impl Default for GeneralConf {
 pub struct Config {
     pub general: GeneralConf,
     pub css: String,
-    pub css_path: PathBuf,
-    pub _conf_path: PathBuf,
 }
 
 impl Config {
-    fn reload_css(&mut self) {
-        let mut css = DEFAULT_CSS.to_string();
-        let css_path = self.css_path.clone();
-        if css_path.exists() {
-            if let Ok(mut f) = std::fs::File::open(&css_path) {
-                css = String::new();
-                let _ = f.read_to_string(&mut css);
-            }
-        }
-
-        self.css = css;
-    }
-
     pub fn get_conf(conf_path: &PathBuf) -> GeneralConf {
         let mut general = GeneralConf::default();
         if let Ok(mut f) = std::fs::File::open(conf_path) {
@@ -112,10 +97,6 @@ impl Config {
         return general;
     }
 
-    pub fn reload(&mut self) {
-        self.reload_css();
-    }
-
     pub fn parse(path: std::path::PathBuf) -> Self {
         let mut css = DEFAULT_CSS.to_string();
         let css_path = path.parent().unwrap().join("style.css");
@@ -133,8 +114,6 @@ impl Config {
         return Self {
             general: Self::get_conf(&path),
             css,
-            css_path,
-            _conf_path: path,
         };
     }
 }
