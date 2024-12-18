@@ -47,17 +47,21 @@ pub fn collect_apps() -> Vec<AppEntry> {
         .into_iter()
         .filter_map(|p| {
             if let Ok(entry) = DesktopEntry::from_path(p.clone(), Some(&locales)) {
-                return Some(AppEntry {
-                    exec: entry.exec().unwrap_or_default().to_string(),
-                    need_terminal: entry.terminal(),
-                    icon: entry
-                        .icon()
-                        .unwrap_or("application-x-executable")
-                        .to_string(),
-                    name: entry.name(&locales).unwrap_or_default().to_string(),
-                    description: entry.comment(&locales).unwrap_or_default().to_string(),
-                    _path: p,
-                });
+                if entry.no_display() {
+                    return None;
+                } else {
+                    return Some(AppEntry {
+                        exec: entry.exec().unwrap_or_default().to_string(),
+                        need_terminal: entry.terminal(),
+                        icon: entry
+                            .icon()
+                            .unwrap_or("application-x-executable")
+                            .to_string(),
+                        name: entry.name(&locales).unwrap_or_default().to_string(),
+                        description: entry.comment(&locales).unwrap_or_default().to_string(),
+                        _path: p,
+                    });
+                }
             }
 
             None
