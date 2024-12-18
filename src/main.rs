@@ -1,12 +1,9 @@
-use std::sync::Arc;
-use tokio::runtime::Runtime;
-use tokio::sync::RwLock;
-
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow};
 use rust_i18n::t;
 use search::SearchManager;
+use tokio::runtime::Runtime;
 
 mod app;
 mod bus;
@@ -19,15 +16,10 @@ mod ui;
 
 rust_i18n::i18n!("locales", fallback = "en");
 
-async fn activate(
-    current_css_provider: Arc<RwLock<gtk::CssProvider>>,
-    config: Arc<RwLock<conf::Config>>,
-    app: &Application,
-) {
+fn activate(config: conf::Config, app: &Application) {
     let settings = gtk::Settings::default().expect("Failed to create GTK settings.");
-    settings.set_gtk_icon_theme_name(Some(&config.read().await.general.theme));
+    settings.set_gtk_icon_theme_name(Some(&config.general.theme));
 
-    let rt = Runtime::new().expect("Unable to create Runtime");
     let window = ApplicationWindow::builder()
         .application(app)
         .title("seekr")
@@ -52,34 +44,17 @@ async fn activate(
         .hexpand(true)
         .css_name("input")
         .activates_default(true)
-        .placeholder_text(&config.read().await.general.search_placeholder)
+        .placeholder_text(&config.general.search_placeholder)
         .build();
 
     let represent_action = gtk::gio::SimpleAction::new("represent", None);
-    let conf_arc_clone = config.clone();
     represent_action.connect_activate(glib::clone!(
         #[weak]
         window,
         #[strong]
         tomanager,
-        #[weak]
-        entry,
         move |_, _| {
             let _ = tomanager.send(search::SearchEvent::Represent);
-            let rt = Runtime::new().expect("Unable to create Runtime");
-            rt.block_on(async {
-                let mut conf = conf_arc_clone.write().await;
-                let ccp = current_css_provider.read().await;
-                conf.reload();
-                entry.set_placeholder_text(Some(&conf.general.search_placeholder.clone()));
-                let new_css_provider = load_css(conf.css.clone(), Some(ccp.clone()));
-                drop(ccp);
-                drop(conf);
-                {
-                    let mut ccp = current_css_provider.write().await;
-                    *ccp = new_css_provider;
-                }
-            });
             window.present();
         }
     ));
@@ -239,9 +214,8 @@ async fn activate(
                 entries_box.append(&title);
             }
 
-            let cfg = rt.block_on(async { config.clone().read().await.clone() });
             for entry in entries {
-                let button = ui::EntryButton(&cfg, entry, &tomanager);
+                let button = ui::EntryButton(&config, entry, &tomanager);
                 entries_box.append(&button);
             }
 
@@ -267,7 +241,7 @@ async fn activate(
     }
 }
 
-fn load_css(css: String, previous_provider: Option<gtk::CssProvider>) -> gtk::CssProvider {
+fn load_css(css: String, previous_provider: Option<gtk::CssProvider>) {
     let provider = gtk::CssProvider::new();
     provider.load_from_string(&css);
 
@@ -283,38 +257,30 @@ fn load_css(css: String, previous_provider: Option<gtk::CssProvider>) -> gtk::Cs
         &provider,
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
-
-    return provider;
 }
 
 fn main() {
-    let rt = Runtime::new().expect("Unable to create Runtime");
-    let _enter = rt.enter();
-    rust_i18n::set_locale(&locale::get_locale());
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_thread_ids(true)
-        .with_timer(tracing_subscriber::fmt::time::time())
-        .init();
-
-    let config = conf::Config::parse(conf::init_config_dir());
     if bus::app_is_running() {
         bus::send_represent_event();
     } else {
+        let rt = Runtime::new().expect("Unable to create Runtime");
+        let _enter = rt.enter();
+        rust_i18n::set_locale(&locale::get_locale());
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_thread_ids(true)
+            .with_timer(tracing_subscriber::fmt::time::time())
+            .init();
+
+        let config = conf::Config::parse(conf::init_config_dir());
+
         gtk::init().expect("Unable to init gtk");
-        let current_css_provider = load_css(config.css.clone(), None);
+        load_css(config.css.clone(), None);
 
         let application = Application::new(Some(conf::APP_ID), Default::default());
 
         application.connect_activate(move |app| {
-            rt.block_on(async {
-                activate(
-                    Arc::new(RwLock::new(current_css_provider.clone())),
-                    Arc::new(RwLock::new(config.clone())),
-                    app,
-                )
-                .await
-            });
+            activate(config.clone(), app);
         });
 
         application.run();
